@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Grafo de Esquinas</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h2>Visualizador de Grafo de Esquinas</h2>
+  <div id="controls">
+    <input type="file" id="geojsonInput" accept=".geojson">
+<script>
+fetch("teste.geojson")
+  .then(res => res.json())
+  .then(data => GrafoApp.loadGeoJSON(data));
+</script>
+    <button onclick="GrafoApp.resetSelection()">Resetar Seleção</button>
+    <button onclick="GrafoApp.adjustZoom(1.1)">Zoom +</button>
+    <button onclick="GrafoApp.adjustZoom(0.9)">Zoom -</button>
+  </div>
+  <div id="main">
+    <div id="canvas-wrapper">
+      <canvas id="canvas" width="1600" height="1200"></canvas>
+    </div>
+    <div id="sidebar">
+      <div id="distancia" class="bold"></div>
+      <div id="caminho"></div>
+    </div>
+  </div>
+  <div id="log"></div>
+  <script src="app.js"></script>
+</body>
+</html>
