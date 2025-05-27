@@ -1,53 +1,27 @@
 body {
-  font-family: sans-serif;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-#controls {
-  margin: 10px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-#main {
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  margin-top: 10px;
-}
-
-#canvas-wrapper {
-  width: 800px;
-  height: 600px;
-  overflow: scroll;
-  border: 1px solid black;
+  background-color: #f8f9fa;
 }
 
 #canvas {
   display: block;
+  background-color: #ffffff;
+  cursor: crosshair;
 }
 
-#sidebar {
-  min-width: 200px;
+#canvas-wrapper {
+  background-color: #e9ecef;
+}
+
+#sidebar .small {
+  line-height: 1.4;
 }
 
 #distancia {
-  font-weight: bold;
-  margin-bottom: 10px;
+  font-size: 0.95rem;
 }
 
-#caminho {
-  white-space: pre-wrap;
-  font-family: monospace;
-}
-
-#log {
-  white-space: pre;
-  font-family: monospace;
-  margin-top: 10px;
-  width: 100%;
-  max-width: 1000px;
+h2,
+h5,
+h6 {
+  color: #343a40;
 }

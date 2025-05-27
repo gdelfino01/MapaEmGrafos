@@ -1,33 +1,80 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Grafo de Esquinas</title>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-  <h2>Visualizador de Grafo de Esquinas</h2>
-  <div id="controls">
-    <input type="file" id="geojsonInput" accept=".geojson">
-<script>
-fetch("teste.geojson")
-  .then(res => res.json())
-  .then(data => GrafoApp.loadGeoJSON(data));
-</script>
-    <button onclick="GrafoApp.resetSelection()">Resetar Seleção</button>
-    <button onclick="GrafoApp.adjustZoom(1.1)">Zoom +</button>
-    <button onclick="GrafoApp.adjustZoom(0.9)">Zoom -</button>
-  </div>
-  <div id="main">
-    <div id="canvas-wrapper">
-      <canvas id="canvas" width="1600" height="1200"></canvas>
+  <div class="container mt-4">
+    <h2 class="mb-4 text-center">Visualizador de Grafo de Esquinas</h2>
+
+    <div id="controls" class="mb-3 p-3 border rounded bg-light shadow-sm">
+      <div class="form-row align-items-center">
+        <div class="col-auto mb-2 mb-md-0">
+          <label class="sr-only" for="geojsonInput">Carregar GeoJSON</label>
+          <input type="file" class="form-control-file" id="geojsonInput" accept=".geojson">
+        </div>
+        <div class="col-auto mb-2 mb-md-0">
+          <button class="btn btn-secondary btn-sm" onclick="GrafoApp.resetSelection()">Resetar Seleção</button>
+        </div>
+        <div class="col-auto mb-2 mb-md-0">
+          <button class="btn btn-info btn-sm" onclick="GrafoApp.adjustZoom(1.1)">Zoom +</button>
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-info btn-sm" onclick="GrafoApp.adjustZoom(0.9)">Zoom -</button>
+        </div>
+      </div>
     </div>
-    <div id="sidebar">
-      <div id="distancia" class="bold"></div>
-      <div id="caminho"></div>
+
+    <div id="main" class="row">
+      <div id="canvas-column" class="col-lg-9 mb-3 mb-lg-0">
+        <div id="canvas-wrapper" class="border rounded shadow-sm"
+          style="width: 100%; height: 600px; overflow: auto; position: relative;">
+          <canvas id="canvas" width="1600" height="1200"></canvas>
+        </div>
+      </div>
+      <div id="sidebar" class="col-lg-3">
+        <div class="p-3 border rounded bg-light shadow-sm">
+          <h5>Informações</h5>
+          <div id="distancia" class="font-weight-bold mb-2 text-info"></div>
+          <div id="caminho" class="small"
+            style="white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmationModalLabel">Confirmar Ação</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body" id="confirmationModalBody">
+          Deseja prosseguir com esta ação?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal" id="modalCancelButton">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="modalConfirmButton">Confirmar</button>
+        </div>
+      </div>
     </div>
   </div>
-  <div id="log"></div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
   <script src="app.js"></script>
 </body>
+
 </html>
