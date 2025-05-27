@@ -9,9 +9,7 @@ class Node {
 const GrafoApp = {
   canvas: document.getElementById("canvas"),
   ctx: null,
-  logDiv: document.getElementById("log"),
   distDiv: document.getElementById("distancia"),
-  dijkstraIterationsLogElement: null, // For Dijkstra iteration logs
   nodes: [],
   edges: [],
   selected: [],
@@ -21,7 +19,6 @@ const GrafoApp = {
   offsetY: 0,
   isDragging: false,
   dragStart: null,
-  execCount: 0,
 
   modalElement: null,
   modalTitleElement: null,
@@ -32,14 +29,13 @@ const GrafoApp = {
   actionConfirmed: false,
 
   currentPath: [],
-  dijkstraIterationStates: [], // Stores snapshots from Dijkstra's algorithm
 
   init() {
     if (!this.canvas) {
+      console.error("Canvas element not found!");
       return;
     }
     this.ctx = this.canvas.getContext("2d");
-    this.dijkstraIterationsLogElement = document.getElementById("dijkstra-iterations-log");
 
     document.getElementById("geojsonInput").addEventListener("change", event => {
       const file = event.target.files[0];
@@ -50,6 +46,7 @@ const GrafoApp = {
             const jsonData = JSON.parse(e.target.result);
             this.loadGeoJSON(jsonData);
           } catch (error) {
+            console.error("Error parsing GeoJSON file:", error);
             if (this.distDiv) this.distDiv.textContent = "Erro ao ler o arquivo GeoJSON.";
           }
         };
@@ -89,7 +86,6 @@ const GrafoApp = {
     if (this.distDiv) this.distDiv.textContent = "Carregue um arquivo GeoJSON.";
     const caminhoDiv = document.getElementById("caminho");
     if (caminhoDiv) caminhoDiv.innerHTML = "Caminho:<br>";
-    if (this.dijkstraIterationsLogElement) this.dijkstraIterationsLogElement.textContent = "Aguardando execução do Dijkstra...";
     this.drawGraph();
   },
 
@@ -106,17 +102,13 @@ const GrafoApp = {
   resetSelection() {
     this.selected = [];
     this.currentPath = [];
-    this.dijkstraIterationStates = []; // Clear stored Dijkstra states
-    if (this.dijkstraIterationsLogElement) this.dijkstraIterationsLogElement.innerHTML = "Aguardando execução do Dijkstra...";
     this.drawGraph();
-    if (this.logDiv) this.logDiv.textContent = "";
     if (this.distDiv) this.distDiv.textContent = "Seleção resetada. Escolha um ponto inicial.";
     const caminhoDiv = document.getElementById("caminho");
     if (caminhoDiv) caminhoDiv.innerHTML = "Caminho:<br>";
   },
 
   loadGeoJSON(data) {
-    // ... (loadGeoJSON function remains largely the same as previous version)
     this.nodes = [];
     this.edges = [];
     this.currentPath = [];
@@ -124,6 +116,7 @@ const GrafoApp = {
     let latList = [], lonList = [];
 
     if (!data || !data.features) {
+      console.error("GeoJSON data is missing 'features' array or data is null.");
       if (this.distDiv) this.distDiv.textContent = "Formato GeoJSON inválido.";
       this.bounds = null;
       this.drawGraph();
@@ -167,22 +160,11 @@ const GrafoApp = {
     this.resetSelection();
   },
 
-  getNodeId(node) {
-    if (!node) return "N/A";
-    const index = this.nodes.indexOf(node);
-    // Fallback if node not in this.nodes (e.g. if node object is different instance)
-    // For robustness, could use lat,lon as a key if index is -1
-    return index !== -1 ? `N${index}` : `${node.lat.toFixed(3)},${node.lon.toFixed(3)}`;
-  },
-
   dijkstra(startNode, endNode) {
-    this.execCount++;
     const dist = new Map();
     const prev = new Map();
     const cameByRua = new Map();
     const pq = new Set();
-    const iterationsLog = [];
-    let iterCount = 0;
 
     this.nodes.forEach(node => {
       dist.set(node, Infinity);
@@ -190,15 +172,6 @@ const GrafoApp = {
       pq.add(node);
     });
     dist.set(startNode, 0);
-
-    iterationsLog.push({
-      iter: iterCount++,
-      action: "Estado Inicial.",
-      details: `Distância de ${this.getNodeId(startNode)} definida para 0. Todas as outras para ∞.`,
-      currentNodeId: null,
-      distances: new Map(dist), // Store a copy
-      pqState: Array.from(pq).map(n => ({ id: this.getNodeId(n), d: dist.get(n) })).sort((a, b) => a.d - b.d)
-    });
 
     while (pq.size > 0) {
       let u = null;
@@ -210,58 +183,20 @@ const GrafoApp = {
         }
       }
 
-      if (u === null) {
-        iterationsLog.push({ iter: iterCount, action: "Fila de prioridade vazia ou nós restantes inacessíveis.", details: "Algoritmo encerrado.", currentNodeId: null, distances: new Map(dist), pqState: [] });
+      if (u === null || u === endNode) { // Optimization: stop if end node is selected or no path
         break;
       }
 
       pq.delete(u);
-      const uId = this.getNodeId(u);
 
-      let logEntry = {
-        iter: iterCount,
-        action: `Nó ${uId} selecionado da fila (dist=${minDist === Infinity ? '∞' : minDist.toFixed(0)}).`,
-        details: `Processando vizinhos de ${uId}:`,
-        currentNodeId: uId,
-        relaxedEdges: [],
-      };
-
-      if (u === endNode) {
-        logEntry.details += " Nó final alcançado. Encerrando.";
-        logEntry.distances = new Map(dist);
-        logEntry.predecessors = new Map(prev);
-        logEntry.pqState = Array.from(pq).map(n => ({ id: this.getNodeId(n), d: dist.get(n) })).sort((a, b) => a.d - b.d);
-        iterationsLog.push(logEntry);
-        break;
-      }
-
-      let neighborDetails = [];
       u.edges.forEach(({ node: v, dist: weight, rua }) => {
-        const vId = this.getNodeId(v);
-        const currentDistV = dist.get(v);
         const newDistV = dist.get(u) + weight;
-        let detail = `  Aresta ${uId} → ${vId} (peso: ${weight.toFixed(0)}): `;
-
-        if (newDistV < currentDistV) {
+        if (newDistV < dist.get(v)) {
           dist.set(v, newDistV);
           prev.set(v, u);
           cameByRua.set(v, rua);
-          logEntry.relaxedEdges.push({ from: uId, to: vId, oldDist: currentDistV, newDist: newDistV, street: rua, weight: weight });
-          detail += `Dist(${vId}) atualizada de ${currentDistV === Infinity ? '∞' : currentDistV.toFixed(0)} para ${newDistV.toFixed(0)}. Predecessor de ${vId} é ${uId}.`;
-        } else {
-          detail += `Nenhuma atualização (nova dist ${newDistV.toFixed(0)} >= atual ${currentDistV === Infinity ? '∞' : currentDistV.toFixed(0)}).`;
         }
-        neighborDetails.push(detail);
       });
-      if (neighborDetails.length > 0) logEntry.details += "\n" + neighborDetails.join("\n");
-      else logEntry.details += " Nenhum vizinho a processar.";
-
-
-      logEntry.distances = new Map(dist);
-      logEntry.predecessors = new Map(prev);
-      logEntry.pqState = Array.from(pq).map(n => ({ id: this.getNodeId(n), d: dist.get(n) })).sort((a, b) => a.d - b.d);
-      iterationsLog.push(logEntry);
-      iterCount++;
     }
 
     const path = []; const ruas = []; let curr = endNode;
@@ -274,88 +209,9 @@ const GrafoApp = {
     }
     if (startNode === endNode && path.length === 0) path.push(startNode);
 
-    this.dijkstraIterationStates = iterationsLog;
     return { path, total: dist.get(endNode) === Infinity ? 0 : dist.get(endNode), ruas };
   },
 
-  displayDijkstraIterations() {
-    if (!this.dijkstraIterationStates || !this.dijkstraIterationsLogElement) return;
-    this.dijkstraIterationsLogElement.innerHTML = "";
-    if (this.dijkstraIterationStates.length === 0) {
-      this.dijkstraIterationsLogElement.textContent = "Nenhuma iteração para mostrar.";
-      return;
-    }
-
-    const ul = document.createElement('ul'); ul.className = 'list-unstyled';
-    this.dijkstraIterationStates.forEach(state => {
-      const li = document.createElement('li');
-      li.style.marginBottom = '15px';
-      li.style.borderBottom = '1px solid #dee2e6'; // Bootstrap subtle border
-      li.style.paddingBottom = '10px';
-
-      let content = `<strong>Iteração ${state.iter}</strong>: ${state.action}<br/>`;
-      if (state.details) {
-        content += `<span style="white-space: pre-line; display: block; margin-left: 15px;">${state.details}</span>`;
-      }
-
-      if (state.relaxedEdges && state.relaxedEdges.length > 0) {
-        // Details now cover this, but could be summarized again if needed
-      }
-
-      // Distances (show key ones or all non-infinite)
-      let distsToLog = "<u>Distâncias Atuais</u> (Nó:Valor): ";
-      let relevantDists = new Set();
-      if (this.selected[0]) relevantDists.add(this.getNodeId(this.selected[0])); // Start
-      if (this.selected[1]) relevantDists.add(this.getNodeId(this.selected[1])); // End
-      if (state.currentNodeId) relevantDists.add(state.currentNodeId);
-      state.relaxedEdges?.forEach(edge => relevantDists.add(edge.to));
-
-      let distEntries = [];
-      relevantDists.forEach(nodeId => {
-        // Find the node object to get its distance from the state.distances Map
-        const nodeObj = this.nodes.find(n => this.getNodeId(n) === nodeId);
-        if (nodeObj && state.distances.has(nodeObj)) {
-          const dVal = state.distances.get(nodeObj);
-          distEntries.push(`${nodeId}:${dVal === Infinity ? '∞' : dVal.toFixed(0)}`);
-        }
-      });
-      // Add a few other non-Infinity distances if space
-      let otherCount = 0;
-      state.distances.forEach((d, n_obj) => {
-        const n_id = this.getNodeId(n_obj);
-        if (d !== Infinity && !relevantDists.has(n_id) && otherCount < 3) {
-          distEntries.push(`${n_id}:${d.toFixed(0)}`);
-          otherCount++;
-        }
-      });
-      if (distEntries.length === 0) distsToLog += "Nenhuma significativa / Todas ∞";
-      else distsToLog += distEntries.join(', ');
-      content += `<span style="display: block; margin-left: 15px;">${distsToLog}</span>`;
-
-      // Priority Queue
-      content += `<span style="display: block; margin-left: 15px;"><u>Fila de Prioridade</u> (id:dist): ${state.pqState.length > 0 ? state.pqState.slice(0, 8).map(n => `${n.id}:${n.d === Infinity ? '∞' : n.d.toFixed(0)}`).join(', ') + (state.pqState.length > 8 ? '...' : '') : 'vazia'}</span>`;
-
-      // Predecessors (if available in state, mainly for final or key states)
-      if (state.predecessors) {
-        let predsToLog = `<span style="display: block; margin-left: 15px;"><u>Predecessores</u> (Nó←Pai): `;
-        let predEntries = [];
-        state.predecessors.forEach((p_obj, c_obj) => {
-          if (p_obj && relevantDists.has(this.getNodeId(c_obj))) { // Show for relevant nodes
-            predEntries.push(`${this.getNodeId(c_obj)}←${this.getNodeId(p_obj)}`);
-          }
-        });
-        if (predEntries.length === 0 && state.iter > 0) predsToLog += "Nenhum relevante definido.";
-        else if (predEntries.length === 0 && state.iter === 0) predsToLog += "Ainda não definidos.";
-        else predsToLog += predEntries.join(', ');
-        content += `${predsToLog}</span>`;
-      }
-      li.innerHTML = content;
-      ul.appendChild(li);
-    });
-    this.dijkstraIterationsLogElement.appendChild(ul);
-  },
-
-  // ... (handleClick, haversine, project, drawGraph, handleZoom, startPan, doPan, distance remain same as previous version)
   handleClick(e) {
     if (!this.bounds || this.nodes.length === 0) return;
     const rect = this.canvas.getBoundingClientRect();
@@ -380,8 +236,6 @@ const GrafoApp = {
     if (this.selected.length === 1) {
       if (this.distDiv) this.distDiv.textContent = `Ponto inicial: ${clickedRua || 'N/A'}. Selecione o ponto final.`;
       this.currentPath = [];
-      if (this.dijkstraIterationsLogElement) this.dijkstraIterationsLogElement.innerHTML = "Aguardando execução do Dijkstra...";
-      this.dijkstraIterationStates = [];
       this.drawGraph();
     } else if (this.selected.length === 2) {
       const ruaInicio = getRua(this.selected[0]);
@@ -391,14 +245,10 @@ const GrafoApp = {
       const modalBodyText = `Deseja encontrar o menor caminho entre ${ruaInicio || 'Ponto A'} e ${ruaFim || 'Ponto B'}?`;
 
       const confirmLogic = () => {
-        if (this.dijkstraIterationsLogElement) this.dijkstraIterationsLogElement.innerHTML = "Calculando iterações do Dijkstra...";
-        this.dijkstraIterationStates = [];
-
         const result = this.dijkstra(this.selected[0], this.selected[1]);
         this.currentPath = result.path;
         this.drawGraph();
-        if (this.logDiv) this.logDiv.textContent = `Dijkstra execuções nesta sessão: ${this.execCount}`;
-        if (this.distDiv) this.distDiv.textContent = `Total: ${result.total > 0 || result.path.length > 0 && result.total === 0 ? result.total.toFixed(2) : 'N/A'} m. De ${ruaInicio || 'A'} para ${ruaFim || 'B'}.`;
+        if (this.distDiv) this.distDiv.textContent = `Total: ${result.total > 0 || (result.path.length > 0 && result.total === 0) ? result.total.toFixed(2) : 'N/A'} m. De ${ruaInicio || 'A'} para ${ruaFim || 'B'}.`;
         const caminhoDiv = document.getElementById("caminho");
         if (caminhoDiv) {
           if (result.path && result.path.length > 0) {
@@ -408,14 +258,11 @@ const GrafoApp = {
             if (this.distDiv) this.distDiv.textContent = `Não foi possível encontrar um caminho entre ${ruaInicio || 'A'} e ${ruaFim || 'B'}.`;
           }
         }
-        this.displayDijkstraIterations(); // Display the new iterations
       };
 
       const cancelLogic = () => {
         this.selected.pop();
         this.currentPath = [];
-        if (this.dijkstraIterationsLogElement) this.dijkstraIterationsLogElement.innerHTML = "Aguardando execução do Dijkstra...";
-        this.dijkstraIterationStates = [];
         const firstPointRua = this.selected[0] ? getRua(this.selected[0]) : 'N/A';
         if (this.distDiv) this.distDiv.textContent = `Ponto inicial: ${firstPointRua}. Selecione o ponto final.`;
         this.drawGraph();
