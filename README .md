@@ -22,10 +22,11 @@ Você pode extrair um `.geojson` usando o site [https://overpass-turbo.eu](https
 ```overpassql
 [out:json][timeout:25];
 (
-  way["highway"](area:3600051475); // Altere o ID da área para sua região desejada
+  way["highway"](around:2000, -19.9191, -43.9386);
 );
 (._; >;);
-out body;
+out skel;
+
 ```
 
 Depois clique em **Export > GeoJSON** e salve o arquivo.
